@@ -37,6 +37,9 @@ class MainActivity : FlutterActivity() {
         watchChannel.setMethodCallHandler { call, result ->
             if (call.method == "start") watch.start(result) else result.notImplemented()
         }
+        val debuggable =
+            applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
+        if (debuggable) watch.registerDebugInjector()
 
         // Local Harness hub contract §3 (same channel in every app).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "local_harness/hub")

@@ -1,6 +1,11 @@
 package dev.deniz.local_harness_para
 
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import com.huawei.wearengine.HiWear
 import com.huawei.wearengine.auth.AuthCallback
 import com.huawei.wearengine.auth.Permission
@@ -28,6 +33,25 @@ class WatchBridge(private val activity: Activity, private val channel: MethodCha
     private val receiver = Receiver { message ->
         val json = message?.data?.let { String(it, Charsets.UTF_8) } ?: return@Receiver
         activity.runOnUiThread { channel.invokeMethod("entry", json) }
+    }
+
+    /**
+     * Debug builds only: lets `adb shell am broadcast -a
+     * dev.deniz.local_harness_para.WATCH_TEST --es json '<entry>'` play the
+     * watch's part, to test the phone side without a watch.
+     */
+    fun registerDebugInjector() {
+        val injector = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                intent.getStringExtra("json")?.let { channel.invokeMethod("entry", it) }
+            }
+        }
+        val filter = IntentFilter("dev.deniz.local_harness_para.WATCH_TEST")
+        if (Build.VERSION.SDK_INT >= 33) {
+            activity.registerReceiver(injector, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            activity.registerReceiver(injector, filter)
+        }
     }
 
     fun start(result: MethodChannel.Result) {

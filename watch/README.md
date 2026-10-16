@@ -34,6 +34,20 @@ Tiny lite-wearable (HML/JS) app for quick income/outcome entry into Para.
 Para must be running (foreground or background) to receive entries; the
 watch queue covers the times it is not.
 
+## Testing without the watch
+
+- Watch logic (keypad, flow, message format, offline queue, category ids,
+  hml ↔ js/css bindings), with fakes for the `@system.*` modules:
+
+      node --import ./watch/test/register.mjs --test watch/test/watch.test.mjs
+
+- Phone side end to end (debug builds of Para only): play the watch's part
+  with adb — the entry appears in Para, a resend with the same id is ignored:
+
+      adb shell "am broadcast -a dev.deniz.local_harness_para.WATCH_TEST \
+        -p dev.deniz.local_harness_para \
+        --es json '{\"id\":\"1792180000000\",\"d\":\"o\",\"a\":45,\"c\":\"market\",\"n\":\"Kahve\"}'"
+
 ## Files
 
 - `entry/src/main/js/MainAbility/common/config.js` — phone package +
