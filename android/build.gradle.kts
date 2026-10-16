@@ -2,6 +2,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // Huawei Wear Engine (watch quick entry).
+        maven("https://developer.huawei.com/repo/")
     }
 }
 

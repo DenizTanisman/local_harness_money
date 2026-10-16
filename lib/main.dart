@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:workmanager/workmanager.dart';
 
 import 'core/hub_snapshot_publisher.dart';
+import 'core/watch_bridge.dart';
 import 'data/db/database_provider.dart';
 import 'data/io/category_setup.dart';
 import 'data/io/fresh_start.dart';
@@ -38,6 +39,8 @@ void main() {
         await FreshStart(db).runOnce();
         // Create any transactions owed by recurring rules (idempotent).
         await RecurringApplier(db).runOnce();
+        // Huawei watch quick entry (no-op without Huawei Health).
+        unawaited(WatchBridge.start(db));
         // Hub contract §5: publish once the startup data work is done, then
         // keep the snapshot fresh on every DB write. Must run before
         // notification init — that awaits the Android 13+ permission dialog,

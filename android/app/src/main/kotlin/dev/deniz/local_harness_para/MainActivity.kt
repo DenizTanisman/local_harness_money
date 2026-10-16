@@ -30,6 +30,14 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
+        // Huawei watch quick entry (Wear Engine) — see WatchBridge.
+        val watchChannel =
+            MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "local_harness_para/watch")
+        val watch = WatchBridge(this, watchChannel)
+        watchChannel.setMethodCallHandler { call, result ->
+            if (call.method == "start") watch.start(result) else result.notImplemented()
+        }
+
         // Local Harness hub contract §3 (same channel in every app).
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "local_harness/hub")
             .setMethodCallHandler { call, result ->

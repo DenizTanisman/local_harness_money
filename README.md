@@ -14,6 +14,9 @@ day shows whether it ended plus or minus against the daily spendable amount:
 
 Data stays on the device in an encrypted SQLite database. See HARNESS.md.
 
+**Huawei Watch GT 5 quick entry** — a small watch app in [`watch/`](watch/)
+sends income/outcome entries to Para over Huawei Wear Engine.
+
 ```sh
 flutter pub get
 flutter test

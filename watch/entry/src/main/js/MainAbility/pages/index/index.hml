@@ -1,0 +1,13 @@
+<stack class="container" onswipe="swipe">
+    <div class="halves">
+        <div class="half outcome" onclick="openOutcome">
+            <text class="sign">−</text>
+            <text class="label">Outcome</text>
+        </div>
+        <div class="half income" onclick="openIncome">
+            <text class="sign">+</text>
+            <text class="label">Income</text>
+        </div>
+    </div>
+    <text class="pending" show="{{pending > 0}}">{{pending}} bekliyor</text>
+</stack>

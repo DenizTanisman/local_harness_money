@@ -1,0 +1,87 @@
+.container {
+    width: 466px;
+    height: 466px;
+    background-color: #000000;
+}
+
+.column {
+    width: 466px;
+    height: 466px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.amount {
+    width: 320px;
+    height: 64px;
+    font-size: 38px;
+    text-align: center;
+    margin-bottom: 6px;
+}
+
+.amount-out {
+    color: #FF6B6B;
+}
+
+.amount-in {
+    color: #5BE37A;
+}
+
+.row {
+    width: 312px;
+    height: 66px;
+    flex-direction: row;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.key {
+    width: 98px;
+    height: 62px;
+    border-radius: 31px;
+    background-color: #333333;
+    font-size: 30px;
+    color: #FFFFFF;
+    text-align: center;
+}
+
+.key-ok {
+    background-color: #1E5FD8;
+}
+
+.title {
+    width: 300px;
+    height: 50px;
+    font-size: 30px;
+    color: #BBBBBB;
+    text-align: center;
+}
+
+.picker {
+    width: 340px;
+    height: 220px;
+    color: #888888;
+    selected-color: #FFFFFF;
+    font-size: 30px;
+    selected-font-size: 38px;
+}
+
+.button {
+    width: 220px;
+    height: 70px;
+    margin-top: 10px;
+    border-radius: 35px;
+    background-color: #1E5FD8;
+    font-size: 30px;
+    color: #FFFFFF;
+    text-align: center;
+}
+
+.result {
+    width: 380px;
+    height: 200px;
+    font-size: 30px;
+    color: #FFFFFF;
+    text-align: center;
+}

@@ -1,0 +1,45 @@
+<div class="container" onswipe="swipe">
+    <!-- 1. Amount -->
+    <div class="column" show="{{step === 'amount'}}">
+        <text class="amount amount-out" show="{{dir === 'o'}}">−{{amountText}}</text>
+        <text class="amount amount-in" show="{{dir === 'i'}}">+{{amountText}}</text>
+        <div class="row">
+            <text class="key" onclick="k1">1</text>
+            <text class="key" onclick="k2">2</text>
+            <text class="key" onclick="k3">3</text>
+        </div>
+        <div class="row">
+            <text class="key" onclick="k4">4</text>
+            <text class="key" onclick="k5">5</text>
+            <text class="key" onclick="k6">6</text>
+        </div>
+        <div class="row">
+            <text class="key" onclick="k7">7</text>
+            <text class="key" onclick="k8">8</text>
+            <text class="key" onclick="k9">9</text>
+        </div>
+        <div class="row">
+            <text class="key" onclick="kDel">⌫</text>
+            <text class="key" onclick="k0">0</text>
+            <text class="key key-ok" onclick="kOk">OK</text>
+        </div>
+    </div>
+    <!-- 2. Category -->
+    <div class="column" show="{{step === 'category'}}">
+        <text class="title">Kategori</text>
+        <picker-view class="picker" type="text" range="{{categoryLabels}}" selected="0"
+                     onchange="categoryChanged"></picker-view>
+        <text class="button" onclick="categoryDone">Devam</text>
+    </div>
+    <!-- 3. Detail (optional) -->
+    <div class="column" show="{{step === 'note'}}">
+        <text class="title">Detay</text>
+        <picker-view class="picker" type="text" range="{{notes}}" selected="0"
+                     onchange="noteChanged"></picker-view>
+        <text class="button" onclick="send">Gönder</text>
+    </div>
+    <!-- 4. Result -->
+    <div class="column" show="{{step === 'done'}}">
+        <text class="result">{{resultText}}</text>
+    </div>
+</div>

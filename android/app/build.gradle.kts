@@ -48,6 +48,8 @@ kotlin {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // Huawei watch quick entry (P2P messages from the watch app in watch/).
+    implementation("com.huawei.hms:wearengine:5.0.3.305")
 }
 
 flutter {

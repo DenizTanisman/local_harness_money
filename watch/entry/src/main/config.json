@@ -1,0 +1,42 @@
+{
+  "app": {
+    "bundleName": "dev.deniz.para.watch",
+    "vendor": "deniz",
+    "version": { "code": 1000000, "name": "1.0.0" }
+  },
+  "deviceConfig": {},
+  "module": {
+    "deviceType": ["liteWearable"],
+    "distro": {
+      "deliveryWithInstall": true,
+      "moduleName": "entry",
+      "moduleType": "entry"
+    },
+    "abilities": [
+      {
+        "name": ".MainAbility",
+        "srcLanguage": "js",
+        "srcPath": "MainAbility",
+        "icon": "$media:icon",
+        "description": "$string:MainAbility_desc",
+        "label": "$string:MainAbility_label",
+        "type": "page"
+      }
+    ],
+    "metaData": {
+      "customizeData": [
+        {
+          "name": "supportLists",
+          "value": "dev.deniz.local_harness_para:CA13E808DEF8DA9E9451E8D65B6EAEC2DEFD71F0C8424F885981FE55F929CB10",
+          "extra": ""
+        }
+      ]
+    },
+    "js": [
+      {
+        "pages": ["pages/index/index", "pages/entry/entry"],
+        "name": ".MainAbility"
+      }
+    ]
+  }
+}
