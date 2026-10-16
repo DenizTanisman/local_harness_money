@@ -1,28 +1,18 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Local notifications (spec §8): runtime permission on 13+, reschedule
          after reboot. Inexact alarms only — no SCHEDULE_EXACT_ALARM. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-    <!-- CR-4 screen time. Personal/sideload build → Play policy N/A.
-         PACKAGE_USAGE_STATS is granted from system settings, not a runtime
-         pop-up; QUERY_ALL_PACKAGES resolves top-5 app labels. -->
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
-        tools:ignore="ProtectedPermissions" />
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
-        tools:ignore="QueryAllPackagesPermission" />
-    <!-- CR-3 P4 Health Connect (read-only, on-device). -->
-    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
-    <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
-    <uses-permission android:name="android.permission.health.READ_SLEEP" />
-    <uses-permission android:name="android.permission.health.READ_STEPS" />
-    <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
-    <queries>
-        <package android:name="com.google.android.apps.healthdata" />
-    </queries>
+    <!-- Local Harness hub contract §1: signature-level permission shared by
+         all four apps (same signing key). Guards HubProvider. -->
+    <permission
+        android:name="dev.deniz.local_harness.permission.HUB"
+        android:protectionLevel="signature"
+        android:label="Local Harness hub access" />
+    <uses-permission android:name="dev.deniz.local_harness.permission.HUB" />
 
     <application
-        android:label="Daily Tracker"
+        android:label="Para"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -46,22 +36,14 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Health Connect permission rationale (P4). -->
-            <intent-filter>
-                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
-            </intent-filter>
         </activity>
-        <!-- Android 14+ rationale alias for Health Connect (P4). -->
-        <activity-alias
-            android:name="ViewPermissionUsageActivity"
+        <!-- Hub contract §2: serves filesDir/hub_snapshot.json to the hub.
+             call() re-checks the permission (not enforced on every API). -->
+        <provider
+            android:name=".HubProvider"
+            android:authorities="dev.deniz.local_harness_para.hub"
             android:exported="true"
-            android:targetActivity=".MainActivity"
-            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
-                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
-            </intent-filter>
-        </activity-alias>
+            android:permission="dev.deniz.local_harness.permission.HUB" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

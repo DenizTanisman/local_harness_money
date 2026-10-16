@@ -1,79 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'edit_guard.dart';
-
-/// The placeholder shown wherever a money amount is hidden.
+/// The placeholder shown wherever a money amount is hidden. Kept for callers
+/// that still reference it, but amounts are no longer masked.
 const moneyMask = '***';
 
-/// What money amounts are currently un-masked. Session-only: it starts fully
-/// masked, and is reset both on app restart (the provider is recreated) and
-/// whenever the app is backgrounded (AppShell calls [MoneyRevealNotifier.reset]),
-/// so leaving and re-entering the app always re-asks for the password.
+/// Money privacy was removed at the user's request: every amount is always
+/// visible and no password is ever asked. [shows] is therefore always true.
 class MoneyReveal {
-  const MoneyReveal({this.all = false, this.ids = const {}});
+  const MoneyReveal();
 
-  /// Every money amount is visible this session.
-  final bool all;
-
-  /// Individually revealed spots (by reveal id), when not [all].
-  final Set<String> ids;
-
-  bool shows(String id) => all || ids.contains(id);
+  bool shows(String id) => true;
 }
 
 class MoneyRevealNotifier extends Notifier<MoneyReveal> {
   @override
   MoneyReveal build() => const MoneyReveal();
 
-  void revealAll() => state = const MoneyReveal(all: true);
+  void revealAll() {}
 
-  void revealOne(String id) =>
-      state = MoneyReveal(all: state.all, ids: {...state.ids, id});
+  void revealOne(String id) {}
 
-  /// Re-hide everything (on background / app exit).
-  void reset() => state = const MoneyReveal();
+  /// No-op: nothing is hidden anymore.
+  void reset() {}
 }
 
-final moneyRevealProvider =
-    NotifierProvider<MoneyRevealNotifier, MoneyReveal>(MoneyRevealNotifier.new);
+final moneyRevealProvider = NotifierProvider<MoneyRevealNotifier, MoneyReveal>(
+  MoneyRevealNotifier.new,
+);
 
-/// Asks for the edit password, then (on success) whether to reveal only the
-/// tapped amount or every money amount for this session.
+/// Amounts are always visible now — nothing to reveal, no password.
 Future<void> revealMoneyFlow(
   BuildContext context,
   WidgetRef ref,
   String id,
-) async {
-  if (!await requireEditPassword(context)) return;
-  if (!context.mounted) return;
-  final scope = await showDialog<String>(
-    context: context,
-    builder: (_) => AlertDialog(
-      title: const Text('Tutarları göster'),
-      content: const Text(
-        'Sadece bu tutarı mı yoksa bu oturumdaki tüm para tutarlarını mı '
-        'göstereyim?',
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, 'one'),
-          child: const Text('Sadece bunu'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, 'all'),
-          child: const Text('Her yeri'),
-        ),
-      ],
-    ),
-  );
-  final notifier = ref.read(moneyRevealProvider.notifier);
-  if (scope == 'all') {
-    notifier.revealAll();
-  } else if (scope == 'one') {
-    notifier.revealOne(id);
-  }
-}
+) async {}
 
 /// A money amount that is masked as [moneyMask] until revealed. [prefix] and
 /// [suffix] (e.g. a label or trailing note) stay visible; only [amount] is

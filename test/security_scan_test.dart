@@ -53,9 +53,29 @@ void main() {
     );
     // FLAG_SECURE is applied via a MethodChannel from MainActivity.
     final mainActivity = File(
-      'android/app/src/main/kotlin/dev/deniz/daily_tracker/MainActivity.kt',
+      'android/app/src/main/kotlin/dev/deniz/local_harness_para/MainActivity.kt',
     ).readAsStringSync();
     expect(mainActivity, contains('FLAG_SECURE'));
-    expect(mainActivity, contains('daily_tracker/secure_window'));
+    expect(mainActivity, contains('local_harness_para/secure_window'));
+  });
+
+  test('hub access is signature-guarded (HUB_CONTRACT §1/§2)', () {
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+    expect(manifest, contains('dev.deniz.local_harness.permission.HUB'));
+    expect(manifest, contains('android:protectionLevel="signature"'));
+    expect(manifest, contains('dev.deniz.local_harness_para.hub'));
+    // Health Connect / usage stats left with the other apps.
+    expect(manifest, isNot(contains('android.permission.health.')));
+    expect(manifest, isNot(contains('PACKAGE_USAGE_STATS')));
+    expect(manifest, isNot(contains('QUERY_ALL_PACKAGES')));
+
+    // call() must re-check the permission itself.
+    final provider = File(
+      'android/app/src/main/kotlin/dev/deniz/local_harness_para/HubProvider.kt',
+    ).readAsStringSync();
+    expect(provider, contains('checkCallingPermission'));
+    expect(provider, contains('SecurityException'));
   });
 }

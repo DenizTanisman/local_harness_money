@@ -1,14 +1,12 @@
-import 'package:daily_tracker/core/date_key.dart';
-import 'package:daily_tracker/data/db/app_database.dart';
-import 'package:daily_tracker/data/db/database_provider.dart';
-import 'package:daily_tracker/data/repositories/money_repository.dart';
-import 'package:daily_tracker/features/money/day_money_editor.dart';
+import 'package:local_harness_para/core/date_key.dart';
+import 'package:local_harness_para/data/db/app_database.dart';
+import 'package:local_harness_para/data/db/database_provider.dart';
+import 'package:local_harness_para/data/repositories/money_repository.dart';
+import 'package:local_harness_para/features/money/day_money_editor.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'support/money_test_support.dart';
 
 /// The editable per-day breakdown under the money form: one collapsible
 /// dropdown per direction, totalled, expanding to each entry.
@@ -21,7 +19,7 @@ void main() {
 
   Widget app(Widget home) {
     container = ProviderContainer(
-      overrides: [databaseProvider.overrideWithValue(db), revealAllOverride],
+      overrides: [databaseProvider.overrideWithValue(db)],
     );
     addTearDown(container.dispose);
     return UncontrolledProviderScope(

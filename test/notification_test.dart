@@ -1,65 +1,38 @@
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:daily_tracker/features/notifications/notification_planner.dart';
-import 'package:daily_tracker/features/notifications/quote_service.dart';
+import 'package:local_harness_para/features/notifications/notification_planner.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Phase 6 acceptance: amounts NEVER appear in notification content;
-/// deterministic quote pick; evening missing count; reminder timing.
+/// monthly reminder timing; stable ids for the "Sustur" mute action.
 void main() {
-  final now = DateTime(2026, 6, 11, 9, 0); // 09:00, before evening
+  final now = DateTime(2026, 6, 11, 9, 0);
 
-  List<PlannedNotification> planWith({
-    List<ReminderInput> reminders = const [],
-    int missing = 0,
-    bool quotesEnabled = true,
-    List<String> quotes = const ['q1', 'q2', 'q3'],
-  }) => NotificationPlanner.plan(
-    now: now,
-    morning: '08:00',
-    evening: '22:00',
-    quotesEnabled: quotesEnabled,
-    quotes: quotes,
-    missingToday: missing,
-    reminders: reminders,
-  );
+  List<PlannedNotification> planWith(List<ReminderInput> reminders) =>
+      NotificationPlanner.plan(now: now, reminders: reminders);
 
   group('expense reminders never leak amounts (spec §8/§11.4)', () {
     test('content is category-only by construction', () {
-      final plan = planWith(
-        reminders: [
-          const ReminderInput(
-            id: 7,
-            remindDate: '2026-06-13',
-            category: 'Bill',
-          ),
-        ],
-      );
-      final expense = plan.where(
-        (p) => p.id >= NotificationPlanner.expenseBaseId,
-      );
-      expect(expense, hasLength(1));
-      final item = expense.single;
-      expect(item.title, 'Reminder: Bill');
-      expect(item.body, isNull);
-      expect(item.payload, 'money');
-      expect(item.when, DateTime(2026, 6, 13, 10, 0));
+      final plan = planWith([
+        const ReminderInput(id: 7, dayOfMonth: 13, category: 'Bill'),
+      ]);
+      expect(plan, hasLength(NotificationPlanner.expenseMonthsAhead));
+      final first = plan.first;
+      expect(first.title, 'Reminder: Bill');
+      expect(first.body, isNull);
+      expect(first.payload, 'money|7');
+      expect(first.when, DateTime(2026, 6, 13, 10, 0));
       // Paranoid sweep: nothing numeric beyond the category name.
-      expect(item.title.contains(RegExp(r'\d')), isFalse);
+      for (final item in plan) {
+        expect(item.title.contains(RegExp(r'\d')), isFalse);
+      }
     });
 
     test('whole plan never contains TL-like amounts', () {
-      final plan = planWith(
-        reminders: [
-          const ReminderInput(
-            id: 1,
-            remindDate: '2026-06-12',
-            category: 'Rent',
-          ),
-        ],
-        missing: 4,
-      );
+      final plan = planWith([
+        const ReminderInput(id: 1, dayOfMonth: 12, category: 'Rent'),
+        const ReminderInput(id: 2, dayOfMonth: 28, category: 'Aidat'),
+      ]);
       for (final item in plan) {
         final text = '${item.title} ${item.body ?? ''}';
         expect(
@@ -69,106 +42,41 @@ void main() {
         );
       }
     });
-
-    test('past reminder dates are skipped, fired ones never passed in', () {
-      final plan = planWith(
-        reminders: [
-          const ReminderInput(
-            id: 1,
-            remindDate: '2026-06-10',
-            category: 'Bill',
-          ), // yesterday
-        ],
-      );
-      expect(
-        plan.where((p) => p.id >= NotificationPlanner.expenseBaseId),
-        isEmpty,
-      );
-    });
   });
 
-  group('morning quotes', () {
-    test('deterministic dayOfYear % length pick', () {
-      final quotes = ['a', 'b', 'c'];
-      // 2026-06-11 is day 162 of the year; 162 % 3 == 0.
-      expect(QuoteService.quoteFor(quotes, DateTime(2026, 6, 11)), 'a');
-      expect(QuoteService.quoteFor(quotes, DateTime(2026, 6, 12)), 'b');
-      // Same date always picks the same quote.
-      expect(
-        QuoteService.quoteFor(quotes, DateTime(2026, 6, 11)),
-        QuoteService.quoteFor(quotes, DateTime(2026, 6, 11)),
-      );
+  group('monthly schedule', () {
+    test("a day already passed this month starts next month", () {
+      final plan = planWith([
+        const ReminderInput(id: 1, dayOfMonth: 10, category: 'Bill'),
+      ]);
+      expect(plan.first.when, DateTime(2026, 7, 10, 10, 0));
+      expect(plan, hasLength(NotificationPlanner.expenseMonthsAhead - 1));
     });
 
-    test('14-day horizon scheduled at the configured time', () {
-      final plan = planWith();
-      final mornings = plan
-          .where(
-            (p) =>
-                p.id >= NotificationPlanner.morningBaseId &&
-                p.id < NotificationPlanner.eveningBaseId,
-          )
-          .toList();
-      expect(
-        mornings,
-        hasLength(NotificationPlanner.horizonDays - 1),
-        reason: "today's 08:00 already passed at a 09:00 now",
-      );
-      expect(mornings.first.when.hour, 8);
-      expect(mornings.every((p) => p.payload == 'home'), isTrue);
+    test('day 31 is clamped to short months', () {
+      final plan = planWith([
+        const ReminderInput(id: 1, dayOfMonth: 31, category: 'Bill'),
+      ]);
+      expect(plan.map((p) => p.when), [
+        DateTime(2026, 6, 30, 10),
+        DateTime(2026, 7, 31, 10),
+        DateTime(2026, 8, 31, 10),
+        DateTime(2026, 9, 30, 10),
+      ]);
     });
 
-    test('disabled quotes drop morning items only', () {
-      final plan = planWith(quotesEnabled: false, quotes: []);
-      expect(
-        plan.where((p) => p.id < NotificationPlanner.eveningBaseId),
-        isEmpty,
-      );
-      expect(
-        plan.where((p) => p.id >= NotificationPlanner.eveningBaseId),
-        isNotEmpty,
-      );
-    });
-  });
-
-  group('evening reminder', () {
-    test("tonight's includes the missing count, later nights generic", () {
-      final plan = planWith(missing: 4);
-      final evenings = plan
-          .where(
-            (p) =>
-                p.id >= NotificationPlanner.eveningBaseId &&
-                p.id < NotificationPlanner.expenseBaseId,
-          )
-          .toList();
-      expect(evenings, hasLength(NotificationPlanner.horizonDays));
-      expect(evenings.first.title, 'Time to fill in your day');
-      expect(evenings.first.body, '4 items left');
-      expect(evenings[1].body, isNull);
+    test('ids are stable and never collide across reminders', () {
+      final plan = planWith([
+        const ReminderInput(id: 1, dayOfMonth: 20, category: 'A'),
+        const ReminderInput(id: 2, dayOfMonth: 20, category: 'B'),
+      ]);
+      final ids = plan.map((p) => p.id).toList();
+      expect(ids.toSet(), hasLength(ids.length));
+      expect(ids.first, NotificationPlanner.expenseNotificationId(1, 0));
     });
 
-    test('zero missing → no count suffix', () {
-      final plan = planWith(missing: 0);
-      final tonight = plan.firstWhere(
-        (p) => p.id == NotificationPlanner.eveningBaseId,
-      );
-      expect(tonight.body, isNull);
-    });
-  });
-
-  group('quote pools', () {
-    test('both asset pools hold ≥120 quotes (spec §8)', () {
-      for (final lang in ['tr', 'en']) {
-        final file = File('assets/quotes_$lang.json');
-        expect(file.existsSync(), isTrue, reason: file.path);
-        final list = (jsonDecode(file.readAsStringSync()) as List);
-        expect(list.length, greaterThanOrEqualTo(120), reason: lang);
-        expect(
-          list.toSet().length,
-          list.length,
-          reason: '$lang has duplicates',
-        );
-      }
+    test('no reminders → nothing scheduled (no quotes/evening nudges)', () {
+      expect(planWith(const []), isEmpty);
     });
   });
 

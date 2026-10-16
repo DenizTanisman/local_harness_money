@@ -2,13 +2,15 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/amounts.dart';
 import '../../data/db/app_database.dart';
 import '../../data/db/database_provider.dart';
-import '../../data/repositories/analysis_repository.dart' show formatAmount;
+import '../../data/io/money_extras.dart';
 import '../../data/repositories/money_repository.dart';
 import '../../theme/app_tokens.dart';
 import '../../theme/glow_background.dart';
-import '../home/home_providers.dart';
+import '../settings/settings_button.dart';
+import '../settings/settings_providers.dart';
 import '../shared/continuous_sparkline.dart';
 import '../shared/period_bar.dart';
 import 'category_donut.dart';
@@ -16,11 +18,14 @@ import 'day_money_editor.dart';
 import 'money_card_body.dart';
 import 'money_providers.dart';
 import 'money_reveal.dart';
-import '../settings/settings_button.dart';
+import 'recurring_page.dart';
+import 'reports_page.dart';
+import 'search_page.dart';
+import 'upcoming_page.dart';
 
-/// Money tab (CR-3 §4): shared entry form on top, then a tap-only inner
-/// nav (Overview / Transactions / Categories). Global swipe stays free.
-/// FLAG_SECURE is handled app-wide by AppShell (CR-3 §14).
+/// Money page (CR-3 §4) — the app's single home: entry form on top, then a
+/// tap-only inner nav (Overview / Table / Categories). FLAG_SECURE is
+/// handled app-wide by AppShell (CR-3 §14).
 class MoneyPage extends ConsumerStatefulWidget {
   const MoneyPage({super.key});
 
@@ -36,11 +41,56 @@ class _MoneyPageState extends ConsumerState<MoneyPage> {
   @override
   Widget build(BuildContext context) {
     final month = ref.watch(moneyMonthProvider);
-    final date = ref.watch(homeDateProvider);
+    final date = ref.watch(moneyDateProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Money'),
-        actions: const [SettingsButton()],
+        title: const Text('Para'),
+        actions: [
+          IconButton(
+            tooltip: 'Ara & filtrele',
+            icon: const Icon(Icons.search),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const TransactionSearchPage()),
+            ),
+          ),
+          PopupMenuButton<String>(
+            onSelected: (v) {
+              final page =
+                  switch (v) {
+                        'reports' => const ReportsPage(),
+                        'upcoming' => const UpcomingPage(),
+                        _ => const RecurringPage(),
+                      }
+                      as Widget;
+              Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'reports',
+                child: ListTile(
+                  leading: Icon(Icons.bar_chart),
+                  title: Text('Raporlar'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'upcoming',
+                child: ListTile(
+                  leading: Icon(Icons.event_available),
+                  title: Text('Yaklaşan ödemeler'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'recurring',
+                child: ListTile(
+                  leading: Icon(Icons.event_repeat),
+                  title: Text('Tekrarlayan işlemler'),
+                ),
+              ),
+            ],
+          ),
+          const SettingsButton(),
+        ],
       ),
       body: GlowBackground(
         child: ListView(
@@ -162,11 +212,12 @@ class _OverviewSection extends ConsumerWidget {
                 id: 'money-daily-budget',
                 prefix: 'Daily budget: ',
                 amount: '${formatAmount(data.dailyBudget)} ₺',
-                suffix: ' (red = luxury above budget)',
+                suffix: ' (red = food/market/online over budget)',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
             CategoryDonut(categories: data.outcome),
+            _BudgetsCard(data: data),
             _CategoryBlock(
               key: const ValueKey('income-block'),
               label: 'Income',
@@ -279,10 +330,18 @@ class _MonthlyTableSection extends ConsumerWidget {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text('Income', style: head, textAlign: TextAlign.left),
+                      child: Text(
+                        'Income',
+                        style: head,
+                        textAlign: TextAlign.left,
+                      ),
                     ),
                     Expanded(
-                      child: Text('Date', style: head, textAlign: TextAlign.center),
+                      child: Text(
+                        'Date',
+                        style: head,
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                     Expanded(
                       child: Text(
@@ -325,8 +384,9 @@ class _TableRow extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Column(
-            crossAxisAlignment:
-                income ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+            crossAxisAlignment: income
+                ? CrossAxisAlignment.start
+                : CrossAxisAlignment.end,
             children: [
               MoneyText(
                 id: id,
@@ -377,6 +437,7 @@ class _CategoriesSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categories = ref.watch(allMoneyCategoriesProvider);
+    final budgets = ref.watch(categoryBudgetsProvider);
     final db = ref.watch(databaseProvider);
     return categories.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -420,19 +481,19 @@ class _CategoriesSection extends ConsumerWidget {
                                     ),
                                   ),
                             ),
-                            FilterChip(
-                              label: const Text('In heatmap'),
-                              selected: c.countsInHeatmap,
-                              onSelected: (v) =>
-                                  (db.update(
-                                    db.moneyCategories,
-                                  )..where((m) => m.id.equals(c.id))).write(
-                                    MoneyCategoriesCompanion(
-                                      countsInHeatmap: Value(v),
-                                    ),
-                                  ),
-                            ),
                           ],
+                        )
+                      : null,
+                  trailing: direction == 'outcome'
+                      ? TextButton.icon(
+                          icon: const Icon(Icons.savings_outlined, size: 16),
+                          label: Text(
+                            budgets[c.name] == null
+                                ? 'Bütçe'
+                                : '${formatAmount(budgets[c.name]!)} ₺',
+                          ),
+                          onPressed: () =>
+                              editCategoryBudget(context, ref, c.name),
                         )
                       : null,
                 ),
@@ -515,3 +576,140 @@ List<Color> moneyDayColors(int daysInMonth, MoneyGeneral general) => [
         ? AppTokens.moneyRed
         : AppTokens.moneyGreen,
 ];
+
+// ---------------------------------------------------------------- Budgets
+
+/// Per-category monthly budget limits with progress bars (green→orange→red).
+/// Only categories that have a limit set are shown.
+class _BudgetsCard extends ConsumerWidget {
+  const _BudgetsCard({required this.data});
+
+  final MoneyGeneral data;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final budgets = ref.watch(categoryBudgetsProvider);
+    final theme = Theme.of(context);
+    if (budgets.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        child: Text(
+          'Kategori bütçesi yok — Categories sekmesinden limit ekleyebilirsin.',
+          style: theme.textTheme.bodySmall,
+        ),
+      );
+    }
+    final spent = {for (final c in data.outcome) c.name: c.total};
+    final names = budgets.keys.toList()..sort();
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Bütçeler', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            for (final name in names)
+              Builder(
+                builder: (context) {
+                  final limit = budgets[name]!;
+                  final s = spent[name] ?? 0;
+                  final ratio = limit <= 0 ? 0.0 : (s / limit);
+                  final color = ratio >= 1
+                      ? AppTokens.danger
+                      : ratio >= 0.8
+                      ? Colors.orange
+                      : AppTokens.moneyGreen;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(name, style: theme.textTheme.bodyMedium),
+                            Text(
+                              '${formatAmount(s)} / ${formatAmount(limit)} ₺',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: color,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: LinearProgressIndicator(
+                            value: ratio.clamp(0.0, 1.0),
+                            minHeight: 7,
+                            backgroundColor: color.withValues(alpha: 0.15),
+                            valueColor: AlwaysStoppedAnimation(color),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Sets or clears a category's monthly budget limit.
+Future<void> editCategoryBudget(
+  BuildContext context,
+  WidgetRef ref,
+  String category,
+) async {
+  final budgets = ref.read(categoryBudgetsProvider);
+  final controller = TextEditingController(
+    text: budgets[category] == null ? '' : formatAmount(budgets[category]!),
+  );
+  final result = await showDialog<double?>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('$category aylık bütçe'),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: const InputDecoration(
+          labelText: 'Limit (boş = bütçe yok)',
+          suffixText: 'TL',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('İptal'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final raw = controller.text
+                .trim()
+                .replaceAll('.', '')
+                .replaceAll(',', '.');
+            Navigator.pop(
+              context,
+              raw.isEmpty ? 0.0 : double.tryParse(raw) ?? 0.0,
+            );
+          },
+          child: const Text('Kaydet'),
+        ),
+      ],
+    ),
+  );
+  if (result == null) return;
+  final next = {...budgets};
+  if (result > 0) {
+    next[category] = result;
+  } else {
+    next.remove(category);
+  }
+  await saveCategoryBudgets(ref.read(settingsRepositoryProvider), next);
+}

@@ -1,7 +1,7 @@
-import 'package:daily_tracker/data/db/app_database.dart';
-import 'package:daily_tracker/data/repositories/money_repository.dart';
-import 'package:daily_tracker/features/money/money_page.dart';
-import 'package:daily_tracker/features/shared/continuous_sparkline.dart';
+import 'package:local_harness_para/data/db/app_database.dart';
+import 'package:local_harness_para/data/repositories/money_repository.dart';
+import 'package:local_harness_para/features/money/money_page.dart';
+import 'package:local_harness_para/features/shared/continuous_sparkline.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

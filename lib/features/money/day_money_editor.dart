@@ -2,41 +2,47 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/amounts.dart';
+import '../../core/date_key.dart';
 import '../../data/db/app_database.dart';
-import '../../data/repositories/analysis_repository.dart' show formatAmount;
 import '../../data/repositories/money_repository.dart';
-import '../home/widgets/input_bodies.dart' show parseNum;
-import 'edit_guard.dart';
+import '../notifications/notification_providers.dart';
 import 'money_providers.dart';
 import 'money_reveal.dart';
 
 /// Password-gated edit (then delete-or-update) of one transaction. Shared by
 /// the day breakdown and the monthly table. New data is never gated — only
-/// changes to existing rows are.
+/// changes to existing rows are. Any field can be changed (date, direction,
+/// amount, category, subtype, note) and reminders can be added/removed here.
 Future<void> editTransactionFlow(
   BuildContext context,
   WidgetRef ref,
   Transaction tx,
 ) async {
-  if (!await requireEditPassword(context)) return;
-  if (!context.mounted) return;
+  // Editing is no longer password-gated (user request).
   final result = await showDialog<_EditResult>(
     context: context,
     builder: (_) => _EditTransactionDialog(tx: tx),
   );
-  if (result == null) return;
   final repo = ref.read(moneyRepositoryProvider);
-  if (result.delete) {
-    await repo.deleteTransaction(tx.id);
-  } else {
-    await repo.updateTransaction(
-      tx.id,
-      amount: result.amount,
-      category: result.category,
-      subtype: result.subtype,
-      note: result.note,
-    );
+  if (result != null) {
+    if (result.delete) {
+      await repo.deleteTransaction(tx.id);
+    } else {
+      await repo.updateTransaction(
+        tx.id,
+        date: result.date,
+        direction: result.direction,
+        amount: result.amount,
+        category: result.category,
+        subtype: result.subtype,
+        note: result.note,
+      );
+    }
   }
+  // Reminders may have been queued/removed live in the dialog, and edits may
+  // have changed the category shown on the lock screen — re-apply the queue.
+  await ref.read(notificationServiceProvider).rescheduleAll();
 }
 
 /// Collapsible per-day Income / Outcome breakdown shown under the money
@@ -105,7 +111,8 @@ class _DirectionDropdown extends ConsumerWidget {
                   trailing: MoneyText(
                     id: id,
                     interactive: false,
-                    amount: '${isIncome ? '+' : '−'}${formatAmount(tx.amount)} ₺',
+                    amount:
+                        '${isIncome ? '+' : '−'}${formatAmount(tx.amount)} ₺',
                     style: theme.textTheme.bodyMedium,
                   ),
                   // Masked → reveal; revealed → edit. Both password-gated.
@@ -124,6 +131,8 @@ class _DirectionDropdown extends ConsumerWidget {
 class _EditResult {
   const _EditResult({
     this.delete = false,
+    this.date,
+    this.direction,
     this.amount,
     this.category,
     this.subtype,
@@ -131,6 +140,8 @@ class _EditResult {
   });
 
   final bool delete;
+  final String? date;
+  final String? direction;
   final double? amount;
   final String? category;
   final String? subtype;
@@ -159,6 +170,8 @@ class _EditTransactionDialogState
     text: widget.tx.note ?? '',
   );
   late String? _category = widget.tx.category;
+  late String _direction = widget.tx.direction;
+  late String _date = widget.tx.date; // 'YYYY-MM-DD'
 
   @override
   void dispose() {
@@ -168,23 +181,75 @@ class _EditTransactionDialogState
     super.dispose();
   }
 
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: parseDateKey(_date),
+      firstDate: DateTime(2015),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) setState(() => _date = dateKey(picked));
+  }
+
+  Future<void> _addReminder() async {
+    final day = await showDialog<int>(
+      context: context,
+      builder: (_) => const DayOfMonthPicker(),
+    );
+    if (day == null) return;
+    await ref
+        .read(moneyRepositoryProvider)
+        .addMonthlyReminder(widget.tx.id, day);
+    // Apply immediately so the new monthly reminder starts firing.
+    await ref.read(notificationServiceProvider).rescheduleAll();
+  }
+
+  Future<void> _muteReminder(int id) async {
+    await ref.read(moneyRepositoryProvider).deleteReminder(id);
+    await ref.read(notificationServiceProvider).rescheduleAll();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final categories =
-        ref.watch(moneyCategoriesProvider(widget.tx.direction)).value ??
-        const [];
+        ref.watch(moneyCategoriesProvider(_direction)).value ?? const [];
     // Keep the current category selectable even if it was since removed.
-    final names = {
-      for (final c in categories) c.name,
-      ?_category,
-    }.toList();
+    final names = {for (final c in categories) c.name, ?_category}.toList();
+    final reminders =
+        ref.watch(txRemindersProvider(widget.tx.id)).value ?? const [];
 
     return AlertDialog(
-      title: Text(widget.tx.direction == 'income' ? 'Geliri düzenle' : 'Gideri düzenle'),
+      title: Text(_direction == 'income' ? 'Geliri düzenle' : 'Gideri düzenle'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Direction is editable too (any value of any record).
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'income', label: Text('Gelir')),
+                ButtonSegment(value: 'outcome', label: Text('Gider')),
+              ],
+              selected: {_direction},
+              onSelectionChanged: (s) => setState(() => _direction = s.first),
+            ),
+            const SizedBox(height: 12),
+            // Editable date.
+            InkWell(
+              onTap: _pickDate,
+              child: InputDecorator(
+                decoration: const InputDecoration(labelText: 'Tarih'),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(_date),
+                    const Icon(Icons.calendar_today, size: 18),
+                  ],
+                ),
+              ),
+            ),
             DropdownButtonFormField<String>(
               initialValue: names.contains(_category) ? _category : null,
               decoration: const InputDecoration(labelText: 'Kategori'),
@@ -196,12 +261,16 @@ class _EditTransactionDialogState
             ),
             TextField(
               controller: _amount,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'[\d.,]')),
               ],
-              decoration: const InputDecoration(labelText: 'Tutar', suffixText: 'TL'),
+              decoration: const InputDecoration(
+                labelText: 'Tutar',
+                suffixText: 'TL',
+              ),
             ),
             TextField(
               controller: _subtype,
@@ -213,6 +282,47 @@ class _EditTransactionDialogState
               controller: _note,
               decoration: const InputDecoration(
                 labelText: 'Açıklama (isteğe bağlı)',
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Monthly recurring reminders — set on any saved expense, any time.
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Aylık hatırlatmalar',
+                style: theme.textTheme.labelLarge,
+              ),
+            ),
+            const SizedBox(height: 4),
+            if (reminders.isNotEmpty)
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  for (final r in reminders)
+                    InputChip(
+                      avatar: const Icon(Icons.notifications_active, size: 16),
+                      label: Text(
+                        'Her ayın '
+                        '${MoneyRepository.reminderDayOfMonth(r.remindDate)}. günü',
+                      ),
+                      deleteIcon: const Icon(Icons.notifications_off, size: 18),
+                      deleteButtonTooltipMessage: 'Sustur',
+                      onDeleted: () => _muteReminder(r.id),
+                    ),
+                ],
+              )
+            else
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Hatırlatma yok', style: theme.textTheme.bodySmall),
+              ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _addReminder,
+                icon: const Icon(Icons.add_alert, size: 18),
+                label: const Text('Aylık hatırlatma ekle'),
               ),
             ),
           ],
@@ -236,6 +346,8 @@ class _EditTransactionDialogState
             Navigator.pop(
               context,
               _EditResult(
+                date: _date,
+                direction: _direction,
                 amount: amount,
                 category: _category,
                 subtype: _subtype.text,
@@ -244,6 +356,48 @@ class _EditTransactionDialogState
             );
           },
           child: const Text('Kaydet'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Picks a day of the month (1–31) for a monthly recurring reminder.
+class DayOfMonthPicker extends StatelessWidget {
+  const DayOfMonthPicker({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Her ayın hangi günü?'),
+      content: SizedBox(
+        width: 320,
+        child: GridView.count(
+          crossAxisCount: 7,
+          shrinkWrap: true,
+          mainAxisSpacing: 6,
+          crossAxisSpacing: 6,
+          children: [
+            for (var d = 1; d <= 31; d++)
+              InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () => Navigator.pop(context, d),
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Theme.of(context).dividerColor),
+                  ),
+                  child: Text('$d'),
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('İptal'),
         ),
       ],
     );

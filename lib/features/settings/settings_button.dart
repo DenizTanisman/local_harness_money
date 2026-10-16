@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'settings_page.dart';
 
-/// Fixed gear action for every tab's AppBar (CR-3 follow-up): replaces the
-/// hard-to-find hamburger drawer. Opens Settings (which links to
+/// Fixed gear action in the Money page's AppBar (CR-3 follow-up): replaces
+/// the hard-to-find hamburger drawer. Opens Settings (which links to
 /// Export / Import).
 class SettingsButton extends StatelessWidget {
   const SettingsButton({super.key});

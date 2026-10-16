@@ -1,0 +1,25 @@
+{
+  "name": "local_harness_para",
+  "role": "feature",
+  "label": "Para",
+  "applicationId": "dev.deniz.local_harness_para",
+  "hubAuthority": "dev.deniz.local_harness_para.hub",
+  "snapshotSchema": 1,
+  "features": [
+    "transactions",
+    "money_categories",
+    "category_budgets",
+    "recurring_transactions",
+    "upcoming_payments",
+    "reports",
+    "search",
+    "expense_reminders",
+    "csv_excel_export_import",
+    "encrypted_weekly_backup",
+    "flag_secure",
+    "hub_snapshot"
+  ],
+  "dbTables": ["transactions", "money_categories", "expense_reminders", "app_settings"],
+  "readsPeers": [],
+  "origin": "split from Takip Uygulaması Android/daily_tracker on 2026-10-04"
+}

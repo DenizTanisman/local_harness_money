@@ -1,17 +1,21 @@
-# daily_tracker
+# 1B$ — Para
 
-A new Flutter project.
+Local, offline Android money tracker (Flutter). One month per screen, each
+day shows whether it ended plus or minus against the daily spendable amount:
 
-## Getting Started
+    günlük harcanabilir = (ana para − ödenmezler) / süre
 
-This project is a starting point for a Flutter application.
+- **ana para** — every income minus every outcome entered.
+- **ödenmezler** — rent, bills, subscriptions (recurring). If the previous one
+  was paid, the next one is ignored until 5 days before its due date.
+- **süre** — days until the next expected income, else until month end.
+- Overspending a day is deducted from the following day(s); a recalculate
+  button restarts the daily amount from today.
 
-A few resources to get you started if this is your first Flutter project:
+Data stays on the device in an encrypted SQLite database. See HARNESS.md.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```sh
+flutter pub get
+flutter test
+flutter build apk
+```

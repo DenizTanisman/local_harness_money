@@ -2,14 +2,13 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../data/repositories/analysis_repository.dart' show formatAmount;
+import '../../core/amounts.dart';
 import '../../data/repositories/money_repository.dart';
 import '../../theme/app_tokens.dart';
 import 'money_reveal.dart';
 
 /// Outcome-category donut for the Money Overview (CR-3 §4). CustomPainter,
-/// no external chart package. Wrapped in a horizontal-drag absorber so a
-/// drag on the chart never leaks to the global PageView swipe (§2/§4).
+/// no external chart package.
 class CategoryDonut extends StatelessWidget {
   const CategoryDonut({super.key, required this.categories});
 
@@ -24,13 +23,8 @@ class CategoryDonut extends StatelessWidget {
         child: Text('No outcome this month.'),
       );
     }
-    // Absorb horizontal drags so the chart doesn't switch tabs (CR-3 §4).
-    return GestureDetector(
+    return KeyedSubtree(
       key: const ValueKey('money-donut'),
-      behavior: HitTestBehavior.opaque,
-      onHorizontalDragStart: (_) {},
-      onHorizontalDragUpdate: (_) {},
-      onHorizontalDragEnd: (_) {},
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(

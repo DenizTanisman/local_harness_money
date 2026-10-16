@@ -1,19 +1,15 @@
-import 'package:daily_tracker/core/date_key.dart';
-import 'package:daily_tracker/data/db/app_database.dart';
-import 'package:daily_tracker/data/db/database_provider.dart';
-import 'package:daily_tracker/data/repositories/money_repository.dart';
-import 'package:daily_tracker/features/home/home_page.dart';
-import 'package:daily_tracker/features/home/home_providers.dart';
-import 'package:daily_tracker/features/money/money_page.dart';
+import 'package:local_harness_para/core/date_key.dart';
+import 'package:local_harness_para/data/db/app_database.dart';
+import 'package:local_harness_para/data/db/database_provider.dart';
+import 'package:local_harness_para/data/repositories/money_repository.dart';
+import 'package:local_harness_para/features/money/money_page.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'support/money_test_support.dart';
-
-/// Phase 5 acceptance (UI level): money card save flow with reminder ask,
-/// General blocks with subtype breakdown, Monthly table.
+/// Phase 5 acceptance (UI level): money form save flow with the monthly
+/// reminder picker, Overview blocks with subtype breakdown, Monthly table.
 void main() {
   late AppDatabase db;
   late ProviderContainer container;
@@ -23,11 +19,7 @@ void main() {
 
   Widget app(Widget home) {
     container = ProviderContainer(
-      overrides: [
-        databaseProvider.overrideWithValue(db),
-        debounceDurationProvider.overrideWithValue(Duration.zero),
-        revealAllOverride,
-      ],
+      overrides: [databaseProvider.overrideWithValue(db)],
     );
     addTearDown(container.dispose);
     return UncontrolledProviderScope(
@@ -50,10 +42,10 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('outcome flow: amount → category → reminder ask → saved', (
+  testWidgets('outcome flow: amount → category → monthly reminder → saved', (
     tester,
   ) async {
-    await pump(tester, const HomePage());
+    await pump(tester, const MoneyPage());
 
     await tester.tap(find.text('Outcome'));
     await tester.pumpAndSettle();
@@ -66,11 +58,13 @@ void main() {
     await tester.tap(find.text('Bill').last);
     await tester.pumpAndSettle();
 
-    // Reminder question appears for outcome. 'Same day' queues; offsets
-    // that land before today are dropped (CR1-D).
-    expect(find.text('Set a reminder?'), findsOneWidget);
-    await tester.tap(find.text('Same day'));
+    // Outcome offers MONTHLY reminders: pick the 15th of every month.
+    expect(find.text('Aylık hatırlatma? (her ay tekrar eder)'), findsOneWidget);
+    await tester.tap(find.text('Gün ekle'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('15'));
+    await tester.pumpAndSettle();
+    expect(find.text('Her ayın 15. günü'), findsOneWidget);
 
     await tester.enterText(find.byKey(const ValueKey('money-subtype')), 'home');
     await tester.tap(find.byKey(const ValueKey('money-save')));
@@ -85,15 +79,16 @@ void main() {
 
     final reminders = await db.select(db.expenseReminders).get();
     expect(reminders, hasLength(1));
+    expect(MoneyRepository.reminderDayOfMonth(reminders.single.remindDate), 15);
     await closeApp(tester);
   });
 
   testWidgets('income flow has no reminder question', (tester) async {
-    await pump(tester, const HomePage());
+    await pump(tester, const MoneyPage());
 
     await tester.tap(find.text('Income'));
     await tester.pumpAndSettle();
-    expect(find.text('Set a reminder?'), findsNothing);
+    expect(find.text('Aylık hatırlatma? (her ay tekrar eder)'), findsNothing);
     await closeApp(tester);
   });
 

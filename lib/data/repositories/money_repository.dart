@@ -1,16 +1,15 @@
 import 'package:drift/drift.dart';
 
-import '../../core/date_key.dart';
 import '../db/app_database.dart';
 
 /// One sparkline day on the Money General page (spec 6.5).
 class MoneyDayPoint {
   const MoneyDayPoint({required this.luxury, required this.overBudget});
 
-  /// Sum of non-essential outcome that day.
+  /// Sum of discretionary (Food + Market + Shopping) outcome that day.
   final double luxury;
 
-  /// luxury > dailyBudget → red dot, else green.
+  /// discretionary spend > dailyBudget → red dot, else green.
   final bool overBudget;
 }
 
@@ -98,18 +97,6 @@ class MoneyRepository {
 
   // ---------- transactions ----------
 
-  /// Total outcome for a single [date] — read-only Daily Check-in summary.
-  Stream<double> watchDayOutcome(String date) {
-    final sum = db.transactions.amount.sum();
-    final query = db.selectOnly(db.transactions)
-      ..addColumns([sum])
-      ..where(
-        db.transactions.date.equals(date) &
-            db.transactions.direction.equals('outcome'),
-      );
-    return query.watchSingle().map((row) => row.read(sum) ?? 0.0);
-  }
-
   /// All of one [date]'s transactions, oldest first — the editable
   /// per-day breakdown under the money form.
   Stream<List<Transaction>> watchDayTransactions(String date) {
@@ -117,6 +104,41 @@ class MoneyRepository {
       ..where((t) => t.date.equals(date))
       ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
     return query.watch();
+  }
+
+  /// Every transaction, newest first — feeds Search and Reports.
+  Stream<List<Transaction>> watchAllTransactions() {
+    final query = db.select(db.transactions)
+      ..orderBy([
+        (t) => OrderingTerm.desc(t.date),
+        (t) => OrderingTerm.desc(t.createdAt),
+      ]);
+    return query.watch();
+  }
+
+  /// Active reminders joined with their transaction's category/direction —
+  /// feeds the Upcoming payments view (each recurs monthly on its day).
+  Stream<List<({int id, int day, String category, String direction})>>
+  watchUpcomingReminders() {
+    final query = db.select(db.expenseReminders).join([
+      innerJoin(
+        db.transactions,
+        db.transactions.id.equalsExp(db.expenseReminders.transactionId),
+      ),
+    ]);
+    return query.watch().map(
+      (rows) => [
+        for (final row in rows)
+          (
+            id: row.readTable(db.expenseReminders).id,
+            day: reminderDayOfMonth(
+              row.readTable(db.expenseReminders).remindDate,
+            ),
+            category: row.readTable(db.transactions).category,
+            direction: row.readTable(db.transactions).direction,
+          ),
+      ],
+    );
   }
 
   /// Flat list of [month]'s transactions, newest first (CR-3 §4 İşlemler).
@@ -130,8 +152,9 @@ class MoneyRepository {
     return query.watch();
   }
 
-  /// Saves a transaction; for outcomes, [reminderOffsets] (days before the
-  /// transaction date, 0–3 each) queue local reminders (spec 6.2).
+  /// Saves a transaction; for outcomes, [reminderDays] (each a day-of-month
+  /// 1–31) queue MONTHLY-recurring reminders that fire every month on that
+  /// day until muted.
   Future<int> addTransaction({
     required String date,
     required String direction,
@@ -139,7 +162,7 @@ class MoneyRepository {
     required String category,
     String? subtype,
     String? note,
-    List<int> reminderOffsets = const [],
+    List<int> reminderDays = const [],
   }) {
     return db.transaction(() async {
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -158,29 +181,20 @@ class MoneyRepository {
             ),
           );
       if (direction == 'outcome') {
-        final today = dateKey(DateTime.now());
-        for (final offset in reminderOffsets) {
-          final remindDate = dateKey(
-            parseDateKey(date).subtract(Duration(days: offset)),
-          );
-          // Past-day entries never queue reminders (CR1-D).
-          if (remindDate.compareTo(today) < 0) continue;
-          await db
-              .into(db.expenseReminders)
-              .insert(
-                ExpenseRemindersCompanion.insert(
-                  transactionId: id,
-                  remindDate: remindDate,
-                ),
-              );
+        for (final day in reminderDays) {
+          await addMonthlyReminder(id, day);
         }
       }
       return id;
     });
   }
 
+  /// Edits any field of an existing transaction. [date] and [direction] are
+  /// now editable too (any value of any record can be changed).
   Future<void> updateTransaction(
     int id, {
+    String? date,
+    String? direction,
     double? amount,
     String? category,
     String? subtype,
@@ -189,6 +203,8 @@ class MoneyRepository {
     final now = DateTime.now().millisecondsSinceEpoch;
     await (db.update(db.transactions)..where((t) => t.id.equals(id))).write(
       TransactionsCompanion(
+        date: date != null ? Value(date) : const Value.absent(),
+        direction: direction != null ? Value(direction) : const Value.absent(),
         amount: amount != null ? Value(amount) : const Value.absent(),
         category: category != null ? Value(category) : const Value.absent(),
         subtype: Value(_clean(subtype)),
@@ -201,6 +217,52 @@ class MoneyRepository {
   Future<void> deleteTransaction(int id) =>
       (db.delete(db.transactions)..where((t) => t.id.equals(id))).go();
 
+  // ---------- monthly recurring reminders ----------
+
+  /// A reminder's recurring day-of-month (1–31) is stored in the day part of
+  /// [remindDate]; the sentinel year/month are ignored. These helpers keep the
+  /// encoding in one place so no schema change was needed.
+  static String monthlyReminderMarker(int day) =>
+      '2000-01-${day.toString().padLeft(2, '0')}';
+
+  static int reminderDayOfMonth(String remindDate) =>
+      int.parse(remindDate.substring(8));
+
+  /// Reminders queued for one transaction, by day-of-month.
+  Stream<List<ExpenseReminder>> watchReminders(int transactionId) {
+    final query = db.select(db.expenseReminders)
+      ..where((r) => r.transactionId.equals(transactionId))
+      ..orderBy([(r) => OrderingTerm.asc(r.remindDate)]);
+    return query.watch();
+  }
+
+  /// Adds a MONTHLY reminder for an existing expense: it fires on [day]
+  /// (1–31) of every month, at 10:00, until muted. Adding the same day twice
+  /// for one transaction is ignored.
+  Future<int> addMonthlyReminder(int transactionId, int day) async {
+    final marker = monthlyReminderMarker(day.clamp(1, 31));
+    final existing =
+        await (db.select(db.expenseReminders)..where(
+              (r) =>
+                  r.transactionId.equals(transactionId) &
+                  r.remindDate.equals(marker),
+            ))
+            .getSingleOrNull();
+    if (existing != null) return existing.id;
+    return db
+        .into(db.expenseReminders)
+        .insert(
+          ExpenseRemindersCompanion.insert(
+            transactionId: transactionId,
+            remindDate: marker,
+          ),
+        );
+  }
+
+  /// Mutes (stops) a recurring reminder by removing it.
+  Future<void> deleteReminder(int id) =>
+      (db.delete(db.expenseReminders)..where((r) => r.id.equals(id))).go();
+
   String? _clean(String? raw) {
     final trimmed = raw?.trim();
     return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
@@ -211,22 +273,26 @@ class MoneyRepository {
   Stream<MoneyGeneral> watchGeneral(String month) =>
       changes().asyncMap((_) => loadGeneral(month));
 
+  /// Categories the daily budget is meant to cover: eating/drinking (Food +
+  /// Market) and online shopping. EVERYTHING ELSE is treated as a fixed
+  /// deduction from income. Daily budget formula (per user spec):
+  ///   (all income − all non-discretionary outcome) / days in month.
+  static const discretionaryCategories = {
+    'Yeme-İçme', 'Market', 'Alışveriş', //
+    'Food', 'Shopping',
+  };
+
   Future<MoneyGeneral> loadGeneral(String month) async {
     final rows = await (db.select(
       db.transactions,
     )..where((t) => t.date.like('$month-%'))).get();
-    final categories = await db.select(db.moneyCategories).get();
-    final essential = {
-      for (final c in categories)
-        if (c.direction == 'outcome' && c.isEssential) c.name,
-    };
 
     final parts = month.split('-').map(int.parse).toList();
     final daysInMonth = DateTime(parts[0], parts[1] + 1, 0).day;
 
     var monthIncome = 0.0;
-    var monthEssential = 0.0;
-    final luxuryByDay = <int, double>{};
+    var monthNonDiscretionary = 0.0;
+    final discretionaryByDay = <int, double>{};
     final outcomeDays = <int>{};
     for (final tx in rows) {
       final day = int.parse(tx.date.substring(8));
@@ -235,19 +301,20 @@ class MoneyRepository {
         continue;
       }
       outcomeDays.add(day);
-      if (essential.contains(tx.category)) {
-        monthEssential += tx.amount;
+      if (discretionaryCategories.contains(tx.category)) {
+        discretionaryByDay[day] = (discretionaryByDay[day] ?? 0) + tx.amount;
       } else {
-        luxuryByDay[day] = (luxuryByDay[day] ?? 0) + tx.amount;
+        // Rent, bills, subscriptions, transfers, … come straight off income.
+        monthNonDiscretionary += tx.amount;
       }
     }
-    final dailyBudget = (monthIncome - monthEssential) / daysInMonth;
+    final dailyBudget = (monthIncome - monthNonDiscretionary) / daysInMonth;
 
     final days = <int, MoneyDayPoint>{
       for (final day in outcomeDays)
         day: MoneyDayPoint(
-          luxury: luxuryByDay[day] ?? 0,
-          overBudget: (luxuryByDay[day] ?? 0) > dailyBudget,
+          luxury: discretionaryByDay[day] ?? 0,
+          overBudget: (discretionaryByDay[day] ?? 0) > dailyBudget,
         ),
     };
 

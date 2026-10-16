@@ -2,22 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/date_key.dart';
+import '../../core/amounts.dart';
 import '../../theme/pill_buttons.dart';
-import '../home/home_providers.dart';
-import '../home/widgets/input_bodies.dart' show parseNum;
+import '../notifications/notification_providers.dart';
 import 'day_money_editor.dart';
 import 'money_providers.dart';
 
-const reminderOptions = [
-  (offset: 0, label: 'Same day'),
-  (offset: 1, label: '1 day before'),
-  (offset: 2, label: '2 days before'),
-  (offset: 3, label: '3 days before'),
-];
-
 /// Money card body (spec 6.2): Income | Outcome buttons opening an inline
-/// form; outcome asks for optional reminders before saving.
+/// form; outcome asks for optional MONTHLY reminders before saving.
 class MoneyCardBody extends ConsumerStatefulWidget {
   const MoneyCardBody({super.key});
 
@@ -79,7 +71,7 @@ class _MoneyCardBodyState extends ConsumerState<MoneyCardBody> {
         ),
         if (_direction != null) _form(_direction!),
         // Editable breakdown of what was already entered for the active day.
-        DayMoneyEditor(date: ref.watch(homeDateProvider)),
+        DayMoneyEditor(date: ref.watch(moneyDateProvider)),
       ],
     );
   }
@@ -149,26 +141,28 @@ class _MoneyCardBodyState extends ConsumerState<MoneyCardBody> {
               ),
             ),
           ],
-          if (direction == 'outcome' &&
-              ref.watch(homeDateProvider) == dateKey(DateTime.now())) ...[
+          if (direction == 'outcome') ...[
             const SizedBox(height: 8),
             Text(
-              'Set a reminder?',
+              'Aylık hatırlatma? (her ay tekrar eder)',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             Wrap(
               spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                for (final option in reminderOptions)
-                  FilterChip(
-                    label: Text(option.label),
-                    selected: _reminders.contains(option.offset),
-                    onSelected: (selected) => setState(() {
-                      selected
-                          ? _reminders.add(option.offset)
-                          : _reminders.remove(option.offset);
-                    }),
+                for (final day in _reminders.toList()..sort())
+                  InputChip(
+                    label: Text('Her ayın $day. günü'),
+                    deleteIcon: const Icon(Icons.close, size: 16),
+                    onDeleted: () => setState(() => _reminders.remove(day)),
                   ),
+                ActionChip(
+                  avatar: const Icon(Icons.add_alert, size: 16),
+                  label: const Text('Gün ekle'),
+                  onPressed: _pickReminderDay,
+                ),
               ],
             ),
           ],
@@ -185,6 +179,14 @@ class _MoneyCardBodyState extends ConsumerState<MoneyCardBody> {
 
   bool get _canSave => _category != null && (parseNum(_amount.text) ?? -1) >= 0;
 
+  Future<void> _pickReminderDay() async {
+    final day = await showDialog<int>(
+      context: context,
+      builder: (_) => const DayOfMonthPicker(),
+    );
+    if (day != null) setState(() => _reminders.add(day));
+  }
+
   Future<void> _newCategory(String direction) async {
     final name = await showDialog<String>(
       context: context,
@@ -200,15 +202,17 @@ class _MoneyCardBodyState extends ConsumerState<MoneyCardBody> {
     await ref
         .read(moneyRepositoryProvider)
         .addTransaction(
-          date: ref.read(homeDateProvider),
+          date: ref.read(moneyDateProvider),
           direction: direction,
           amount: parseNum(_amount.text)!,
           category: _category!,
           subtype: _subtype.text,
-          reminderOffsets: direction == 'outcome'
-              ? _reminders.toList()
-              : const [],
+          reminderDays: direction == 'outcome' ? _reminders.toList() : const [],
         );
+    // Apply the newly queued monthly reminders right away.
+    if (direction == 'outcome' && _reminders.isNotEmpty) {
+      await ref.read(notificationServiceProvider).rescheduleAll();
+    }
     setState(() {
       _direction = null;
     });

@@ -1,6 +1,5 @@
-import 'package:daily_tracker/core/date_key.dart';
-import 'package:daily_tracker/data/db/app_database.dart';
-import 'package:daily_tracker/data/repositories/money_repository.dart';
+import 'package:local_harness_para/data/db/app_database.dart';
+import 'package:local_harness_para/data/repositories/money_repository.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -18,9 +17,10 @@ void main() {
 
   group('red/green budget formula (spec 6.5)', () {
     test(
-      'income 15000, essential 10500, 30 days → budget 150; lux 200 → red',
+      'income 15000, fixed 10500, 30 days → budget 150; lux 200 → red',
       () async {
-        // June 2026 has 30 days. Rent+Bill are seeded essential.
+        // June 2026 has 30 days. Rent + Bill are fixed (non-discretionary)
+        // spend and come straight off income.
         await money.addTransaction(
           date: '2026-06-01',
           direction: 'income',
@@ -39,7 +39,7 @@ void main() {
           amount: 2500,
           category: 'Bill',
         );
-        // Day with 200 luxury (Food is non-essential).
+        // Day with 200 luxury (Food is discretionary).
         await money.addTransaction(
           date: '2026-06-10',
           direction: 'outcome',
@@ -51,14 +51,14 @@ void main() {
           date: '2026-06-11',
           direction: 'outcome',
           amount: 100,
-          category: 'Entertainment',
+          category: 'Market',
         );
 
         final general = await money.loadGeneral('2026-06');
         expect(general.dailyBudget, 150); // (15000 − 10500) / 30
         expect(general.days[10]!.overBudget, isTrue);
         expect(general.days[11]!.overBudget, isFalse);
-        // Essential-only days carry zero luxury → green.
+        // Fixed-spend-only days carry zero luxury → green.
         expect(general.days[2]!.luxury, 0);
         expect(general.days[2]!.overBudget, isFalse);
       },
@@ -155,32 +155,25 @@ void main() {
     });
   });
 
-  group('reminders (spec 6.2)', () {
-    test(
-      'outcome offsets queue reminder rows dated before the transaction',
-      () async {
-        // Future-relative so the "skip remind dates before today" rule
-        // (CR1-D) never trims a date as the calendar advances.
-        final now = DateTime.now();
-        final txDate = dateKey(now.add(const Duration(days: 5)));
-        final twoBefore = dateKey(now.add(const Duration(days: 3)));
-        final id = await money.addTransaction(
-          date: txDate,
-          direction: 'outcome',
-          amount: 2500,
-          category: 'Bill',
-          reminderOffsets: [0, 2],
-        );
-        final reminders = await (db.select(
-          db.expenseReminders,
-        )..where((r) => r.transactionId.equals(id))).get();
-        expect(
-          reminders.map((r) => r.remindDate),
-          unorderedEquals([txDate, twoBefore]),
-        );
-        expect(reminders.every((r) => !r.fired), isTrue);
-      },
-    );
+  group('monthly reminders (spec 6.2)', () {
+    test('outcome reminder days queue one row per day-of-month', () async {
+      final id = await money.addTransaction(
+        date: '2026-06-05',
+        direction: 'outcome',
+        amount: 2500,
+        category: 'Bill',
+        reminderDays: [15, 1, 15],
+      );
+      final reminders = await (db.select(
+        db.expenseReminders,
+      )..where((r) => r.transactionId.equals(id))).get();
+      // The duplicate 15 is ignored; the day lives in the marker's day part.
+      expect(
+        reminders.map((r) => MoneyRepository.reminderDayOfMonth(r.remindDate)),
+        unorderedEquals([1, 15]),
+      );
+      expect(reminders.every((r) => !r.fired), isTrue);
+    });
 
     test('income never queues reminders', () async {
       await money.addTransaction(
@@ -188,18 +181,35 @@ void main() {
         direction: 'income',
         amount: 100,
         category: 'Scholarship',
-        reminderOffsets: [1],
+        reminderDays: [1],
       );
+      expect(await db.select(db.expenseReminders).get(), isEmpty);
+    });
+
+    test('day is clamped to 1–31 and muting deletes the row', () async {
+      final id = await money.addTransaction(
+        date: '2026-06-05',
+        direction: 'outcome',
+        amount: 10,
+        category: 'Food',
+      );
+      final rid = await money.addMonthlyReminder(id, 40);
+      final row = await (db.select(
+        db.expenseReminders,
+      )..where((r) => r.id.equals(rid))).getSingle();
+      expect(MoneyRepository.reminderDayOfMonth(row.remindDate), 31);
+
+      await money.deleteReminder(rid);
       expect(await db.select(db.expenseReminders).get(), isEmpty);
     });
 
     test('deleting a transaction cascades its reminders', () async {
       final id = await money.addTransaction(
-        date: dateKey(DateTime.now().add(const Duration(days: 5))),
+        date: '2026-06-05',
         direction: 'outcome',
         amount: 10,
         category: 'Food',
-        reminderOffsets: [1],
+        reminderDays: [1],
       );
       await money.deleteTransaction(id);
       expect(await db.select(db.expenseReminders).get(), isEmpty);
