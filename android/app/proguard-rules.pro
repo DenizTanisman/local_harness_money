@@ -9,3 +9,9 @@
 -keepattributes Signature
 -keep class com.google.gson.reflect.TypeToken { *; }
 -keep class * extends com.google.gson.reflect.TypeToken
+
+# Huawei Wear Engine (watch quick entry): AIDL binders and parcelables are
+# reached through Huawei Health — keep them intact.
+-keep class com.huawei.wearengine.** { *; }
+-keep class com.huawei.hmf.** { *; }
+-dontwarn com.huawei.**

@@ -14,6 +14,10 @@ day shows whether it ended plus or minus against the daily spendable amount:
 
 Data stays on the device in an encrypted SQLite database. See HARNESS.md.
 
+**Download:** the latest APK is on the
+[Releases page](https://github.com/DenizTanisman/local_harness_money/releases/latest)
+(Android 8+, install it and allow "unknown sources").
+
 **Huawei Watch GT 5 quick entry** — a small watch app in [`watch/`](watch/)
 sends income/outcome entries to Para over Huawei Wear Engine.
 
