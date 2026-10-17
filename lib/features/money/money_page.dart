@@ -44,7 +44,7 @@ class _MoneyPageState extends ConsumerState<MoneyPage> {
     final date = ref.watch(moneyDateProvider);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Para'),
+        title: const Text('Detay'),
         actions: [
           IconButton(
             tooltip: 'Ara & filtrele',
@@ -94,7 +94,8 @@ class _MoneyPageState extends ConsumerState<MoneyPage> {
       ),
       body: GlowBackground(
         child: ListView(
-          padding: const EdgeInsets.only(bottom: 24),
+          // Bottom room for the floating nav bar (AppShell).
+          padding: const EdgeInsets.only(bottom: 120),
           children: [
             // Shared entry form — only on Overview so Transactions /
             // Categories aren't crowded by it (CR-3 follow-up #7).
@@ -115,25 +116,30 @@ class _MoneyPageState extends ConsumerState<MoneyPage> {
               onPrev: () => ref.read(moneyMonthProvider.notifier).shift(-1),
               onNext: () => ref.read(moneyMonthProvider.notifier).shift(1),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SegmentedButton<_MoneyView>(
-                segments: const [
-                  ButtonSegment(
-                    value: _MoneyView.overview,
-                    label: Text('Overview'),
-                  ),
-                  ButtonSegment(
-                    value: _MoneyView.transactions,
-                    label: Text('Table'),
-                  ),
-                  ButtonSegment(
-                    value: _MoneyView.categories,
-                    label: Text('Categories'),
-                  ),
+            // Choice chips, as in the Notes app's filter row.
+            SizedBox(
+              height: 48,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                children: [
+                  for (final (view, text) in const [
+                    (_MoneyView.overview, 'Overview'),
+                    (_MoneyView.transactions, 'Table'),
+                    (_MoneyView.categories, 'Categories'),
+                  ])
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: ChoiceChip(
+                        label: Text(text),
+                        selected: _view == view,
+                        onSelected: (_) => setState(() => _view = view),
+                      ),
+                    ),
                 ],
-                selected: {_view},
-                onSelectionChanged: (s) => setState(() => _view = s.first),
               ),
             ),
             const SizedBox(height: 8),

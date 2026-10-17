@@ -3,13 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/hub_snapshot_publisher.dart';
 import '../../core/secure_window.dart';
+import '../../core/date_key.dart';
 import '../money/daily_page.dart';
+import '../money/money_page.dart';
 import '../money/money_providers.dart';
 import '../settings/settings_providers.dart';
+import 'floating_nav_bar.dart';
 
-/// Single-screen shell: the daily page is home (the full Money page opens
-/// from its app bar). Owns the app-wide concerns — FLAG_SECURE and
-/// re-publishing the hub snapshot when the app leaves the foreground.
+/// Two tabs — Takvim (month pages) · Detay (the full Money page) — on the
+/// Notes app's floating pill bar, whose round + opens today's entry. Owns
+/// the app-wide concerns — FLAG_SECURE and re-publishing the hub snapshot
+/// when the app leaves the foreground.
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
@@ -20,6 +24,7 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell>
     with WidgetsBindingObserver {
   bool _secured = false;
+  int _tab = 0;
 
   @override
   void initState() {
@@ -42,9 +47,10 @@ class _AppShellState extends ConsumerState<AppShell>
     if (state == AppLifecycleState.paused) {
       ref.read(hubSnapshotPublisherProvider).publishNow();
     }
-    // Always land on today's day when the app comes back.
+    // Always land on today's month when the app comes back.
     if (state == AppLifecycleState.resumed) {
       ref.read(moneyDateProvider.notifier).resetToToday();
+      if (_tab != 0) setState(() => _tab = 0);
     }
   }
 
@@ -56,5 +62,33 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   @override
-  Widget build(BuildContext context) => const DailyPage();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _tab,
+        children: const [DailyPage(), MoneyPage()],
+      ),
+      // The floating bar sits over the content; pages pad their bottom.
+      extendBody: true,
+      bottomNavigationBar: FloatingNavBar(
+        index: _tab,
+        onSelect: (i) => setState(() => _tab = i),
+        items: const [
+          NavItem(
+            Icons.calendar_month_outlined,
+            Icons.calendar_month,
+            'Takvim',
+          ),
+          NavItem(Icons.view_list_outlined, Icons.view_list, 'Detay'),
+        ],
+        actionIcon: Icons.add,
+        actionTooltip: 'Bugüne ekle',
+        onAction: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => DayEntryPage(date: dateKey(DateTime.now())),
+          ),
+        ),
+      ),
+    );
+  }
 }

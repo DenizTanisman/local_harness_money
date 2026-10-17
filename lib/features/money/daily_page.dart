@@ -14,7 +14,6 @@ import '../settings/settings_button.dart';
 import '../settings/settings_providers.dart';
 import 'daily_budget.dart';
 import 'day_money_editor.dart';
-import 'money_page.dart';
 import 'money_providers.dart';
 
 /// Home screen: one month per page, swiped up/down (current month on
@@ -91,14 +90,6 @@ class _DailyPageState extends ConsumerState<DailyPage> {
             tooltip: 'Yeniden hesapla',
             icon: const Icon(Icons.calculate_outlined),
             onPressed: () => recalculateFlow(context, ref),
-          ),
-          IconButton(
-            tooltip: 'Detaylı görünüm',
-            icon: const Icon(Icons.view_list),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const MoneyPage()),
-            ),
           ),
           const SettingsButton(),
         ],
@@ -231,7 +222,8 @@ class _MonthPage extends ConsumerWidget {
     );
     final tracked = keys.any(statuses.containsKey);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+      // Bottom room for the floating nav bar (AppShell).
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 96),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
