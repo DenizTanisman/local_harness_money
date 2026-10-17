@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 
 import '../../data/io/export_service.dart';
 import '../../data/io/import_service.dart';
+import '../../theme/glow_background.dart';
 import 'settings_providers.dart';
 
 /// Export / Import (spec 6.6 + §10).
@@ -15,35 +16,40 @@ class ExportImportPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Export / Import')),
-      body: ListView(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.table_chart),
-            title: const Text('Export CSV'),
-            subtitle: const Text('transactions.csv'),
-            onTap: () => _exportCsv(context, ref),
-          ),
-          ListTile(
-            leading: const Icon(Icons.grid_on),
-            title: const Text('Export Excel'),
-            subtitle: const Text('Single .xlsx with the transactions sheet'),
-            onTap: () => _exportExcel(context, ref),
-          ),
-          ListTile(
-            leading: const Icon(Icons.download),
-            title: const Text('Download sample CSV'),
-            onTap: () => _saveSample(context),
-          ),
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.upload),
-            title: const Text('Import CSV'),
-            subtitle: const Text('Template format; validated, all-or-nothing'),
-            onTap: () => _importCsv(context, ref),
-          ),
-        ],
+    return GlowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(title: const Text('Export / Import')),
+        body: ListView(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.table_chart),
+              title: const Text('Export CSV'),
+              subtitle: const Text('transactions.csv'),
+              onTap: () => _exportCsv(context, ref),
+            ),
+            ListTile(
+              leading: const Icon(Icons.grid_on),
+              title: const Text('Export Excel'),
+              subtitle: const Text('Single .xlsx with the transactions sheet'),
+              onTap: () => _exportExcel(context, ref),
+            ),
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('Download sample CSV'),
+              onTap: () => _saveSample(context),
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.upload),
+              title: const Text('Import CSV'),
+              subtitle: const Text(
+                'Template format; validated, all-or-nothing',
+              ),
+              onTap: () => _importCsv(context, ref),
+            ),
+          ],
+        ),
       ),
     );
   }

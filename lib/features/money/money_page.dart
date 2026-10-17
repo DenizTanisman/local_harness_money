@@ -42,58 +42,64 @@ class _MoneyPageState extends ConsumerState<MoneyPage> {
   Widget build(BuildContext context) {
     final month = ref.watch(moneyMonthProvider);
     final date = ref.watch(moneyDateProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Detay'),
-        actions: [
-          IconButton(
-            tooltip: 'Ara & filtrele',
-            icon: const Icon(Icons.search),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const TransactionSearchPage()),
+    return GlowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text('Detay'),
+          actions: [
+            IconButton(
+              tooltip: 'Ara & filtrele',
+              icon: const Icon(Icons.search),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const TransactionSearchPage(),
+                ),
+              ),
             ),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (v) {
-              final page =
-                  switch (v) {
-                        'reports' => const ReportsPage(),
-                        'upcoming' => const UpcomingPage(),
-                        _ => const RecurringPage(),
-                      }
-                      as Widget;
-              Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: 'reports',
-                child: ListTile(
-                  leading: Icon(Icons.bar_chart),
-                  title: Text('Raporlar'),
+            PopupMenuButton<String>(
+              onSelected: (v) {
+                final page =
+                    switch (v) {
+                          'reports' => const ReportsPage(),
+                          'upcoming' => const UpcomingPage(),
+                          _ => const RecurringPage(),
+                        }
+                        as Widget;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => page),
+                );
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'reports',
+                  child: ListTile(
+                    leading: Icon(Icons.bar_chart),
+                    title: Text('Raporlar'),
+                  ),
                 ),
-              ),
-              PopupMenuItem(
-                value: 'upcoming',
-                child: ListTile(
-                  leading: Icon(Icons.event_available),
-                  title: Text('Yaklaşan ödemeler'),
+                PopupMenuItem(
+                  value: 'upcoming',
+                  child: ListTile(
+                    leading: Icon(Icons.event_available),
+                    title: Text('Yaklaşan ödemeler'),
+                  ),
                 ),
-              ),
-              PopupMenuItem(
-                value: 'recurring',
-                child: ListTile(
-                  leading: Icon(Icons.event_repeat),
-                  title: Text('Tekrarlayan işlemler'),
+                PopupMenuItem(
+                  value: 'recurring',
+                  child: ListTile(
+                    leading: Icon(Icons.event_repeat),
+                    title: Text('Tekrarlayan işlemler'),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SettingsButton(),
-        ],
-      ),
-      body: GlowBackground(
-        child: ListView(
+              ],
+            ),
+            const SettingsButton(),
+          ],
+        ),
+        body: ListView(
           // Bottom room for the floating nav bar (AppShell).
           padding: const EdgeInsets.only(bottom: 120),
           children: [

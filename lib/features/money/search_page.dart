@@ -5,6 +5,7 @@ import '../../core/amounts.dart';
 import '../../data/db/app_database.dart';
 import '../../data/repositories/money_repository.dart' show displayCategory;
 import '../../theme/app_tokens.dart';
+import '../../theme/glow_background.dart';
 import 'day_money_editor.dart' show editTransactionFlow;
 import 'money_providers.dart';
 
@@ -67,116 +68,119 @@ class _TransactionSearchPageState extends ConsumerState<TransactionSearchPage> {
     );
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Ara & filtrele')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            child: TextField(
-              controller: _query,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                hintText: 'Kategori, alt tür veya açıklama ara',
-                prefixIcon: const Icon(Icons.search),
-                border: const OutlineInputBorder(),
-                isDense: true,
-                suffixIcon: _query.text.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => setState(() => _query.clear()),
-                      ),
+    return GlowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(title: const Text('Ara & filtrele')),
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: TextField(
+                controller: _query,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: 'Kategori, alt tür veya açıklama ara',
+                  prefixIcon: const Icon(Icons.search),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                  suffixIcon: _query.text.isEmpty
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () => setState(() => _query.clear()),
+                        ),
+                ),
               ),
             ),
-          ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              children: [
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'all', label: Text('Hepsi')),
-                    ButtonSegment(value: 'income', label: Text('Gelir')),
-                    ButtonSegment(value: 'outcome', label: Text('Gider')),
-                  ],
-                  selected: {_direction},
-                  onSelectionChanged: (s) =>
-                      setState(() => _direction = s.first),
-                ),
-                const SizedBox(width: 8),
-                _filterChip(
-                  label: _category ?? 'Kategori',
-                  active: _category != null,
-                  onTap: () => _pickCategory(categories),
-                ),
-                const SizedBox(width: 8),
-                _filterChip(
-                  label: _range == null
-                      ? 'Tarih'
-                      : '${_fmtDate(_range!.start).substring(5)} → ${_fmtDate(_range!.end).substring(5)}',
-                  active: _range != null,
-                  onTap: _pickRange,
-                ),
-                const SizedBox(width: 8),
-                _filterChip(
-                  label: (_min == null && _max == null)
-                      ? 'Tutar'
-                      : '${_min?.toStringAsFixed(0) ?? '0'}–${_max?.toStringAsFixed(0) ?? '∞'}',
-                  active: _min != null || _max != null,
-                  onTap: _pickAmount,
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${results.length} işlem',
-                  style: theme.textTheme.bodySmall,
-                ),
-                Text(
-                  'Net: ${sum >= 0 ? '+' : '−'}${formatAmount(sum.abs())} ₺',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: sum >= 0 ? AppTokens.moneyGreen : AppTokens.danger,
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'all', label: Text('Hepsi')),
+                      ButtonSegment(value: 'income', label: Text('Gelir')),
+                      ButtonSegment(value: 'outcome', label: Text('Gider')),
+                    ],
+                    selected: {_direction},
+                    onSelectionChanged: (s) =>
+                        setState(() => _direction = s.first),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  _filterChip(
+                    label: _category ?? 'Kategori',
+                    active: _category != null,
+                    onTap: () => _pickCategory(categories),
+                  ),
+                  const SizedBox(width: 8),
+                  _filterChip(
+                    label: _range == null
+                        ? 'Tarih'
+                        : '${_fmtDate(_range!.start).substring(5)} → ${_fmtDate(_range!.end).substring(5)}',
+                    active: _range != null,
+                    onTap: _pickRange,
+                  ),
+                  const SizedBox(width: 8),
+                  _filterChip(
+                    label: (_min == null && _max == null)
+                        ? 'Tutar'
+                        : '${_min?.toStringAsFixed(0) ?? '0'}–${_max?.toStringAsFixed(0) ?? '∞'}',
+                    active: _min != null || _max != null,
+                    onTap: _pickAmount,
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Divider(height: 12),
-          Expanded(
-            child: results.isEmpty
-                ? const Center(child: Text('Sonuç yok'))
-                : ListView.builder(
-                    itemCount: results.length,
-                    itemBuilder: (context, i) {
-                      final t = results[i];
-                      final income = t.direction == 'income';
-                      return ListTile(
-                        dense: true,
-                        title: Text(displayCategory(t)),
-                        subtitle: Text(
-                          '${t.date}${t.note != null ? ' • ${t.note}' : ''}',
-                        ),
-                        trailing: Text(
-                          '${income ? '+' : '−'}${formatAmount(t.amount)} ₺',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: income
-                                ? AppTokens.moneyGreen
-                                : AppTokens.danger,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${results.length} işlem',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  Text(
+                    'Net: ${sum >= 0 ? '+' : '−'}${formatAmount(sum.abs())} ₺',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: sum >= 0 ? AppTokens.moneyGreen : AppTokens.danger,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 12),
+            Expanded(
+              child: results.isEmpty
+                  ? const Center(child: Text('Sonuç yok'))
+                  : ListView.builder(
+                      itemCount: results.length,
+                      itemBuilder: (context, i) {
+                        final t = results[i];
+                        final income = t.direction == 'income';
+                        return ListTile(
+                          dense: true,
+                          title: Text(displayCategory(t)),
+                          subtitle: Text(
+                            '${t.date}${t.note != null ? ' • ${t.note}' : ''}',
                           ),
-                        ),
-                        onTap: () => editTransactionFlow(context, ref, t),
-                      );
-                    },
-                  ),
-          ),
-        ],
+                          trailing: Text(
+                            '${income ? '+' : '−'}${formatAmount(t.amount)} ₺',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: income
+                                  ? AppTokens.moneyGreen
+                                  : AppTokens.danger,
+                            ),
+                          ),
+                          onTap: () => editTransactionFlow(context, ref, t),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'app_tokens.dart';
 
-/// Single radial glow layer per page (CR1-B `bg.glow`): blue radial light
-/// focused at the upper-middle, fading to transparent. Plain gradient —
-/// no BackdropFilter anywhere (scroll performance rule).
+/// Page background (CR1-B `bg.glow`): the base navy plus one blue radial
+/// light focused at the upper-middle. It wraps the whole Scaffold so the
+/// glow runs under the (transparent) app bar too, and it is opaque so
+/// pages never show through each other during route transitions. Plain
+/// gradient — no BackdropFilter anywhere (scroll performance rule).
 class GlowBackground extends StatelessWidget {
   const GlowBackground({super.key, required this.child});
 
@@ -14,6 +16,7 @@ class GlowBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
+        const Positioned.fill(child: ColoredBox(color: AppTokens.bgBase)),
         Positioned(
           top: -120,
           left: 0,

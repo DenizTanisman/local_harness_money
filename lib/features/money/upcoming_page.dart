@@ -5,6 +5,7 @@ import '../../core/amounts.dart';
 import '../../core/date_key.dart';
 import '../../data/io/money_extras.dart';
 import '../../theme/app_tokens.dart';
+import '../../theme/glow_background.dart';
 import 'money_providers.dart';
 import 'recurring_page.dart';
 
@@ -82,94 +83,97 @@ class UpcomingPage extends ConsumerWidget {
         )
         .fold<double>(0, (a, i) => a + (i.amount ?? 0));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Yaklaşan ödemeler'),
-        actions: [
-          IconButton(
-            tooltip: 'Tekrarlayanları yönet',
-            icon: const Icon(Icons.event_repeat),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const RecurringPage()),
-            ),
-          ),
-        ],
-      ),
-      body: items.isEmpty
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  'Yaklaşan ödeme yok.\n'
-                  'Tekrarlayan işlem ekleyin ya da bir gidere aylık '
-                  'hatırlatma kurun.',
-                  textAlign: TextAlign.center,
-                ),
+    return GlowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text('Yaklaşan ödemeler'),
+          actions: [
+            IconButton(
+              tooltip: 'Tekrarlayanları yönet',
+              icon: const Icon(Icons.event_repeat),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const RecurringPage()),
               ),
-            )
-          : Column(
-              children: [
-                Card(
-                  margin: const EdgeInsets.all(12),
-                  color: AppTokens.danger.withValues(alpha: 0.08),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Bu ay kalan otomatik gider',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                        Text(
-                          '${formatAmount(dueThisMonth)} ₺',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: AppTokens.danger,
+            ),
+          ],
+        ),
+        body: items.isEmpty
+            ? const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'Yaklaşan ödeme yok.\n'
+                    'Tekrarlayan işlem ekleyin ya da bir gidere aylık '
+                    'hatırlatma kurun.',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              )
+            : Column(
+                children: [
+                  Card(
+                    margin: const EdgeInsets.all(12),
+                    color: AppTokens.danger.withValues(alpha: 0.08),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Bu ay kalan otomatik gider',
+                            style: theme.textTheme.bodyMedium,
                           ),
-                        ),
-                      ],
+                          Text(
+                            '${formatAmount(dueThisMonth)} ₺',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppTokens.danger,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: ListView.separated(
-                    itemCount: items.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (context, i) {
-                      final it = items[i];
-                      final income = it.direction == 'income';
-                      return ListTile(
-                        leading: Icon(
-                          it.recurring
-                              ? Icons.event_repeat
-                              : Icons.notifications_active,
-                          color: it.recurring
-                              ? theme.colorScheme.primary
-                              : Colors.orange,
-                        ),
-                        title: Text(it.title),
-                        subtitle: Text(
-                          '${dateKey(it.date)}'
-                          '${it.recurring ? ' • otomatik' : ' • hatırlatma'}',
-                        ),
-                        trailing: it.amount == null
-                            ? null
-                            : Text(
-                                '${income ? '+' : '−'}${formatAmount(it.amount!)} ₺',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: income
-                                      ? AppTokens.moneyGreen
-                                      : AppTokens.danger,
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: items.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, i) {
+                        final it = items[i];
+                        final income = it.direction == 'income';
+                        return ListTile(
+                          leading: Icon(
+                            it.recurring
+                                ? Icons.event_repeat
+                                : Icons.notifications_active,
+                            color: it.recurring
+                                ? theme.colorScheme.primary
+                                : Colors.orange,
+                          ),
+                          title: Text(it.title),
+                          subtitle: Text(
+                            '${dateKey(it.date)}'
+                            '${it.recurring ? ' • otomatik' : ' • hatırlatma'}',
+                          ),
+                          trailing: it.amount == null
+                              ? null
+                              : Text(
+                                  '${income ? '+' : '−'}${formatAmount(it.amount!)} ₺',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: income
+                                        ? AppTokens.moneyGreen
+                                        : AppTokens.danger,
+                                  ),
                                 ),
-                              ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+      ),
     );
   }
 }

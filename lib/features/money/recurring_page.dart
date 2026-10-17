@@ -6,6 +6,7 @@ import '../../core/amounts.dart';
 import '../../data/db/database_provider.dart';
 import '../../data/io/money_extras.dart';
 import '../settings/settings_providers.dart';
+import '../../theme/glow_background.dart';
 import 'day_money_editor.dart' show DayOfMonthPicker;
 import 'money_providers.dart';
 
@@ -23,73 +24,76 @@ class RecurringPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final rules = ref.watch(recurringRulesProvider);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Tekrarlayan işlemler')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _edit(context, ref, rules, null),
-        icon: const Icon(Icons.add),
-        label: const Text('Ekle'),
-      ),
-      body: rules.isEmpty
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  'Henüz tekrarlayan işlem yok.\n'
-                  'Kira, maaş, abonelik gibi her ay tekrar eden işlemleri '
-                  'ekleyin; uygulama o gün otomatik kaydeder.',
-                  textAlign: TextAlign.center,
+    return GlowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(title: const Text('Tekrarlayan işlemler')),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => _edit(context, ref, rules, null),
+          icon: const Icon(Icons.add),
+          label: const Text('Ekle'),
+        ),
+        body: rules.isEmpty
+            ? const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'Henüz tekrarlayan işlem yok.\n'
+                    'Kira, maaş, abonelik gibi her ay tekrar eden işlemleri '
+                    'ekleyin; uygulama o gün otomatik kaydeder.',
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-              ),
-            )
-          : ListView(
-              children: [
-                for (final r in rules)
-                  ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: r.direction == 'income'
-                          ? Colors.green.withValues(alpha: 0.2)
-                          : Colors.red.withValues(alpha: 0.2),
-                      child: Icon(
-                        r.direction == 'income'
-                            ? Icons.south_west
-                            : Icons.north_east,
-                        size: 18,
-                        color: r.direction == 'income'
-                            ? Colors.green
-                            : Colors.red,
+              )
+            : ListView(
+                children: [
+                  for (final r in rules)
+                    ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: r.direction == 'income'
+                            ? Colors.green.withValues(alpha: 0.2)
+                            : Colors.red.withValues(alpha: 0.2),
+                        child: Icon(
+                          r.direction == 'income'
+                              ? Icons.south_west
+                              : Icons.north_east,
+                          size: 18,
+                          color: r.direction == 'income'
+                              ? Colors.green
+                              : Colors.red,
+                        ),
+                      ),
+                      title: Text(
+                        '${r.category}'
+                        '${r.subtype != null ? ' (${r.subtype})' : ''}',
+                      ),
+                      subtitle: Text(
+                        'Her ayın ${r.day}. günü • '
+                        '${r.direction == 'income' ? '+' : '−'}'
+                        '${formatAmount(r.amount)} ₺',
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined),
+                            onPressed: () => _edit(context, ref, rules, r),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () async {
+                              await _persist(
+                                ref,
+                                rules.where((x) => x.id != r.id).toList(),
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
-                    title: Text(
-                      '${r.category}'
-                      '${r.subtype != null ? ' (${r.subtype})' : ''}',
-                    ),
-                    subtitle: Text(
-                      'Her ayın ${r.day}. günü • '
-                      '${r.direction == 'income' ? '+' : '−'}'
-                      '${formatAmount(r.amount)} ₺',
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit_outlined),
-                          onPressed: () => _edit(context, ref, rules, r),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () async {
-                            await _persist(
-                              ref,
-                              rules.where((x) => x.id != r.id).toList(),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
+                ],
+              ),
+      ),
     );
   }
 

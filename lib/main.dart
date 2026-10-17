@@ -64,6 +64,7 @@ class ParaApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Para',
+      debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
       // Single dark theme built from tokens (CR1-B rule 7).
       theme: buildAppTheme(),

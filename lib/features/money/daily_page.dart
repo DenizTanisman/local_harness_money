@@ -81,21 +81,22 @@ class _DailyPageState extends ConsumerState<DailyPage> {
     ref.listen(moneyDateProvider, (_, _) {
       if (_pager.hasClients) _pager.jumpToPage(DailyPage.monthsBack);
     });
-    return Scaffold(
-      appBar: AppBar(
-        title: const _Balance(),
-        actions: [
-          IconButton(
-            key: const ValueKey('daily-recalc'),
-            tooltip: 'Yeniden hesapla',
-            icon: const Icon(Icons.calculate_outlined),
-            onPressed: () => recalculateFlow(context, ref),
-          ),
-          const SettingsButton(),
-        ],
-      ),
-      body: GlowBackground(
-        child: PageView.builder(
+    return GlowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const _Balance(),
+          actions: [
+            IconButton(
+              key: const ValueKey('daily-recalc'),
+              tooltip: 'Yeniden hesapla',
+              icon: const Icon(Icons.calculate_outlined),
+              onPressed: () => recalculateFlow(context, ref),
+            ),
+            const SettingsButton(),
+          ],
+        ),
+        body: PageView.builder(
           controller: _pager,
           scrollDirection: Axis.vertical,
           itemCount: DailyPage.monthsBack + 1,
@@ -142,10 +143,11 @@ class DayEntryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(DailyPage.label(date))),
-      body: GlowBackground(
-        child: ListView(
+    return GlowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(title: Text(DailyPage.label(date))),
+        body: ListView(
           padding: const EdgeInsets.only(top: 8, bottom: 24),
           children: [
             _Summary(date: date),

@@ -24,10 +24,11 @@ class SettingsPage extends ConsumerWidget {
     final settings = ref.watch(settingsProvider).value ?? const {};
     final repo = ref.read(settingsRepositoryProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: GlowBackground(
-        child: ListView(
+    return GlowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(title: const Text('Settings')),
+        body: ListView(
           children: [
             const _SectionHeader('Data'),
             ListTile(

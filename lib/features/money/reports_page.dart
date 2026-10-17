@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/amounts.dart';
 import '../../theme/app_tokens.dart';
+import '../../theme/glow_background.dart';
 import 'money_providers.dart';
 
 /// Monthly income/outcome trend over the last 12 months plus a net summary
@@ -41,71 +42,74 @@ class ReportsPage extends ConsumerWidget {
     final topCats = byCategory.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Raporlar')),
-      body: all.isEmpty
-          ? const Center(child: Text('Veri yok'))
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Text(
-                  'Aylık gelir / gider (son ${shown.length} ay)',
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 200,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        for (final m in shown)
-                          _MonthBars(
-                            month: m,
-                            income: income[m] ?? 0,
-                            outcome: outcome[m] ?? 0,
-                            maxVal: maxVal,
-                          ),
-                      ],
+    return GlowBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(title: const Text('Raporlar')),
+        body: all.isEmpty
+            ? const Center(child: Text('Veri yok'))
+            : ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Text(
+                    'Aylık gelir / gider (son ${shown.length} ay)',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 200,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          for (final m in shown)
+                            _MonthBars(
+                              month: m,
+                              income: income[m] ?? 0,
+                              outcome: outcome[m] ?? 0,
+                              maxVal: maxVal,
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _legend(AppTokens.moneyGreen, 'Gelir'),
-                    const SizedBox(width: 16),
-                    _legend(AppTokens.danger, 'Gider'),
-                  ],
-                ),
-                const Divider(height: 32),
-                _SummaryRows(income: income, outcome: outcome, shown: shown),
-                const Divider(height: 32),
-                Text(
-                  'En çok harcanan kategoriler (tüm zamanlar)',
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                for (final e in topCats.take(10))
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(e.key),
-                        Text(
-                          '${formatAmount(e.value)} ₺',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: AppTokens.danger,
-                          ),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _legend(AppTokens.moneyGreen, 'Gelir'),
+                      const SizedBox(width: 16),
+                      _legend(AppTokens.danger, 'Gider'),
+                    ],
                   ),
-              ],
-            ),
+                  const Divider(height: 32),
+                  _SummaryRows(income: income, outcome: outcome, shown: shown),
+                  const Divider(height: 32),
+                  Text(
+                    'En çok harcanan kategoriler (tüm zamanlar)',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  for (final e in topCats.take(10))
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(e.key),
+                          Text(
+                            '${formatAmount(e.value)} ₺',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: AppTokens.danger,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+      ),
     );
   }
 
