@@ -14,6 +14,18 @@ day shows whether it ended plus or minus against the daily spendable amount:
 
 Data stays on the device in an encrypted SQLite database. See HARNESS.md.
 
+## Screenshots
+
+| Month | A day | Add an entry | Details |
+|---|---|---|---|
+| ![Month](docs/screenshots/01-takvim.png) | ![Day](docs/screenshots/02-gun.png) | ![Add](docs/screenshots/03-ekle.png) | ![Details](docs/screenshots/04-detay.png) |
+
+| Table | Reports | Upcoming payments | Recurring |
+|---|---|---|---|
+| ![Table](docs/screenshots/05-tablo.png) | ![Reports](docs/screenshots/06-raporlar.png) | ![Upcoming](docs/screenshots/07-yaklasan.png) | ![Recurring](docs/screenshots/08-tekrarlayan.png) |
+
+All screenshots use made-up demo data ([`tool/screenshots/`](tool/screenshots/)).
+
 **Download:** the latest APK is on the
 [Releases page](https://github.com/DenizTanisman/local_harness_money/releases/latest)
 (Android 8+, install it and allow "unknown sources").
